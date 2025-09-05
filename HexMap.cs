@@ -1,29 +1,47 @@
 using Godot;
-using System;
 
 public partial class HexMap : Node2D
 {
-  public readonly int numRows = 20;
-  public readonly int numCols = 40;
+  public readonly int numRows;
+  public readonly int numCols;
   public bool allowWrapAroundEastWest = true;
 
-  public Hex[,] Hexes;
+  public Hex[,] hexes;
 
-  public HexMap()
+  public HexMap(int numRows = 20, int numCols = 40)
   {
-    Hexes = new Hex[numCols, numRows];
+    this.numRows = numRows;
+    this.numCols = numCols;
+    
+    Name = "HexMap";
+    UniqueNameInOwner = true;
+
+    GenerateHexMap();
+    // TODO: Implement map terrain generation
+  }
+
+  private void GenerateHexMap()
+  {
+    hexes = new Hex[numCols, numRows];
     for (int q = 0; q < numCols; q++)
     {
       for (int r = 0; r < numRows; r++)
       {
         var hex = new Hex(q, r, this);
-        // Calculate position for pointy topped hexes
-        float x = hex.HexHorizontalSpacing() * (q + r * 0.5f);
-        float y = Hex.HexVerticalSpacing() * r;
-        hex.Position = new Vector2(x, y);
+        hexes[q, r] = hex;
         AddChild(hex);
-        Hexes[q, r] = hex;
       }
+    }
+  }
+
+  public void UpdateHexPositions(Vector2 cameraPosition)
+  {
+    if (hexes == null || hexes.Length == 0)
+      return;
+
+    foreach (Hex hex in hexes)
+    {
+      hex?.UpdatePosition(cameraPosition);
     }
   }
 }

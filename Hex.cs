@@ -17,6 +17,7 @@ public partial class Hex : Node2D
   private Sprite2D hexSprite;
   private Control labelContainer;
   private Label coordLabel;
+  public Color fillColor = Colors.White;
 
   public Hex(int q, int r, HexMap hexMap)
   {
@@ -24,11 +25,17 @@ public partial class Hex : Node2D
     R = r;
     S = -Q - R;
     _hexMap = hexMap;
+
+    float x = HexHorizontalSpacing() * (q + r * 0.5f);
+    float y = HexVerticalSpacing() * r;
+    Position = new Vector2(x, y);
+
+    Name = $"Hex_{Q}_{R}";
   }
 
   public override void _Ready()
   {
-    AddChild(CreateCenterTextControl($"{Q},{R}"));
+    AddChild(CreateCenterTextControl($"{Q},{R}"));  // Debug: Show hex coordinates - TODO: Toggle via debug setting?
     QueueRedraw();
   }
 
@@ -68,7 +75,8 @@ public partial class Hex : Node2D
       float angle = angle_offset + i * Mathf.Pi / 3;
       points[i] = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
     }
-    DrawPolygon(points, [Colors.White, Colors.White, Colors.White, Colors.White, Colors.White, Colors.White]);
+    DrawPolygon(points, Enumerable.Repeat(fillColor, 6).ToArray());
+
     DrawPolyline(points.Append(points[0]).ToArray(), Colors.Black, 1.0f); // Outline
   }
 
@@ -91,7 +99,6 @@ public partial class Hex : Node2D
   {
     return HexWidth();
   }
-
 
   public Vector2 PositionFromCamera(Vector2 cameraPosition, float numRows, float numCols)
   {
@@ -128,5 +135,11 @@ public partial class Hex : Node2D
 
     Vector2 position = PositionFromCamera(cameraPosition, _hexMap.numRows, _hexMap.numCols);
     Position = position;
+  }
+
+  public void SetFillColor(Color color)
+  {
+    fillColor = color;
+    QueueRedraw();
   }
 }

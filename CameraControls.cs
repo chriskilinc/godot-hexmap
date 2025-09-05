@@ -1,15 +1,18 @@
 using Godot;
-using System;
-using System.Linq;
 
 public partial class CameraControls : Camera2D
 {
+  [Signal]
+  public delegate void WorldClickedEventHandler(Vector2 worldPos);
+  [Signal]
+  public delegate void CameraMovedEventHandler(Vector2 newPosition);
+
   [Export]
-  public float Speed = 400f;
+  public float Speed = 500f;
   [Export]
   public float ZoomStep = 0.1f;
   [Export]
-  public float MinZoom = 0.75f;
+  public float MinZoom = 0.5f;
   [Export]
   public float MaxZoom = 2.0f;
   [Export]
@@ -18,39 +21,16 @@ public partial class CameraControls : Camera2D
   [Export]
   public Vector2 StartPosition = Vector2.Zero;
 
-  public Hex[] hexes;
-  private HexMap hexMap;
+  public CameraControls(Vector2 startPosition = new Vector2())
+  {
+    StartPosition = startPosition;
+  }
 
   public override void _Ready()
   {
     Position = StartPosition;
-
-    if (hexes == null || hexes.Length == 0)
-    {
-      hexMap = GetParent<HexMap>();
-      if (hexMap != null)
-      {
-        hexes = hexMap.GetChildren().OfType<Hex>().ToArray();
-      }
-    }
-
-    UpdateHexPositions();
-    UpdateCameraPosition();
   }
 
-  private void UpdateCameraPosition()
-  {
-    if (hexMap != null)
-    {
-
-      var centerHex = hexMap.Hexes[hexMap.numCols / 2, hexMap.numRows / 2];
-      Position = centerHex != null ? centerHex.Position : StartPosition;
-    }
-    else
-    {
-      Position = StartPosition;
-    }
-  }
 
   public override void _Process(double delta)
   {
@@ -96,6 +76,11 @@ public partial class CameraControls : Camera2D
       {
         ApplyZoom(Zoom - new Vector2(ZoomStep, ZoomStep));
       }
+      else if (Input.IsActionPressed("mouse_left"))
+      {
+        Vector2 worldPos = GetGlobalMousePosition();
+        EmitSignal(nameof(WorldClicked), worldPos);
+      }
     }
   }
 
@@ -111,18 +96,6 @@ public partial class CameraControls : Camera2D
       return;
 
     oldPosition = Position;
-
-    UpdateHexPositions();
-  }
-
-  private void UpdateHexPositions()
-  {
-    if (hexes == null || hexes.Length == 0)
-      return;
-
-    for (int i = 0; i < hexes.Length; i++)
-    {
-      hexes[i]?.UpdatePosition(oldPosition);
-    }
+    EmitSignal(nameof(CameraMoved), Position);
   }
 }
