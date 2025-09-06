@@ -4,6 +4,7 @@ using System.Linq;
 
 public partial class Hex : Node2D
 {
+  public bool debugMode = false;
   private const float V = 32.0f;
 
   public readonly int Q;
@@ -13,11 +14,14 @@ public partial class Hex : Node2D
   readonly float WIDTH_MULTIPLIER = Mathf.Sqrt(3) / 2;
   public static float radius = V;
 
-  public Texture2D HexTexture;
   private Sprite2D hexSprite;
   private Control labelContainer;
   private Label coordLabel;
   public Color fillColor = Colors.White;
+
+  public Texture2D hexTexture;
+  public Texture2D grassTexture;
+  public Texture2D grassTexture2;
 
   public Hex(int q, int r, HexMap hexMap)
   {
@@ -35,7 +39,18 @@ public partial class Hex : Node2D
 
   public override void _Ready()
   {
-    AddChild(CreateCenterTextControl($"{Q},{R}"));  // Debug: Show hex coordinates - TODO: Toggle via debug setting?
+    // The texture should be a square image with a hexagon centered and transparent corners.
+    grassTexture = GD.Load<Texture2D>("res://Assets/Tiles/Terrain/Grass/grass_05.png");
+    grassTexture2 = GD.Load<Texture2D>("res://Assets/Tiles/Terrain/Grass/grass_12.png");
+
+    // Randomly assign one of the grass textures
+    hexTexture = GD.Randf() < 0.5f ? grassTexture : grassTexture2;
+    // hexTexture = GD.Load<Texture2D>("res://Assets/Tiles/Terrain/Grass/grass_05.png");
+
+    if (debugMode)
+    {
+      AddChild(CreateCenterTextControl($"{Q},{R}"));  // Debug: Show hex coordinates - TODO: Toggle via debug setting?
+    }
     QueueRedraw();
   }
 
@@ -69,13 +84,27 @@ public partial class Hex : Node2D
   {
     //  Create hexagon points
     Vector2[] points = new Vector2[6];
+    Vector2[] uvs = new Vector2[6];
     float angle_offset = Mathf.Pi / 6; // Pointy top
+
+    float uvScale = 1f; // Shrink texture coverage
     for (int i = 0; i < 6; i++)
     {
       float angle = angle_offset + i * Mathf.Pi / 3;
       points[i] = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+      // Map hex points to [0,1] UV space (centered), then scale toward center
+      // The UV mapping assumes the hex fits perfectly inside the texture.
+      uvs[i] = (points[i] * uvScale / (radius * 2)) + new Vector2(0.5f, 0.5f);
     }
-    DrawPolygon(points, Enumerable.Repeat(fillColor, 6).ToArray());
+
+    if (hexTexture != null)
+    {
+      DrawPolygon(points, null, uvs, hexTexture);
+    }
+    else
+    {
+      DrawPolygon(points, Enumerable.Repeat(fillColor, 6).ToArray());
+    }
 
     DrawPolyline(points.Append(points[0]).ToArray(), Colors.Black, 1.0f); // Outline
   }
