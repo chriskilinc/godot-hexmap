@@ -4,7 +4,10 @@ public partial class GameManager : Node2D
 {
   private Hex[,] hexes;
   private Hex lastSelectedHex;
+  private Hex lastHoveredHex;
   private HexMap hexMap;
+  // private UiManager uiManager;
+  private CameraControls camera;
 
   // Create a hex map and camera controls
   public override void _Ready()
@@ -13,13 +16,17 @@ public partial class GameManager : Node2D
     hexes = hexMap.hexes;
 
     var camera = new CameraControls(GetHexMapCenter());
-
+    this.camera = camera;
 
     camera.Connect("WorldClicked", new Callable(this, nameof(OnWorldClickedEventListener)));
     camera.Connect("CameraMoved", new Callable(this, nameof(OnCameraMovedEventListener)));
+    camera.Connect("MouseHovered", new Callable(this, nameof(OnMouseHoveredEventListener)));
+
+    // uiManager = new UiManager(camera);
 
     AddChild(hexMap);
     AddChild(camera);
+    // AddChild(uiManager);
   }
 
   // TODO: Should this be in HexMap?
@@ -30,8 +37,8 @@ public partial class GameManager : Node2D
     GD.Print(clickedHex != null ? $"Clicked hex: Q={clickedHex.Q}, R={clickedHex.R}" : "Clicked outside of hex map bounds");
     if (clickedHex != null)
     {
-      lastSelectedHex?.SetFillColor(Colors.White); // Reset previous
-      clickedHex.SetFillColor(Colors.Yellow);      // Highlight new
+      clickedHex.SelectTile();
+      lastSelectedHex?.DeselectTile();
       lastSelectedHex = clickedHex;
     }
   }
@@ -41,6 +48,20 @@ public partial class GameManager : Node2D
   {
     GD.Print($"Camera moved to: {newPosition}");
     hexMap.UpdateHexPositions(newPosition);
+  }
+
+  private void OnMouseHoveredEventListener(Vector2 worldPos)
+  {
+    var hoveredHex = GetHexByPosition(worldPos);
+    if (hoveredHex != null && hoveredHex != lastHoveredHex)
+    {
+      GD.Print($"Hovering over hex: Q={hoveredHex.Q}, R={hoveredHex.R}");
+      hoveredHex.HoverTile();
+      // uiManager.DisplayHoverBox(hoveredHex.Position, $"Q={hoveredHex.Q}, R={hoveredHex.R} / Q={hoveredHex.Q}, R={hoveredHex.R}");
+      camera.uiManager.SpawnBoxInCameraCorner($"Q={hoveredHex.Q}, R={hoveredHex.R} / Q={hoveredHex.Q}, R={hoveredHex.R}");
+      lastHoveredHex?.UnhoverTile();
+      lastHoveredHex = hoveredHex;
+    }
   }
 
   public Hex GetHexByPosition(Vector2 position)

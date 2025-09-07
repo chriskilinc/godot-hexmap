@@ -2,10 +2,16 @@ using Godot;
 
 public partial class CameraControls : Camera2D
 {
+  private Vector2 lastMousePos = Vector2.Zero;
+  private double hoverEmitTimer = 0;
+  private const double HoverEmitInterval = 0.2;
+
   [Signal]
   public delegate void WorldClickedEventHandler(Vector2 worldPos);
   [Signal]
   public delegate void CameraMovedEventHandler(Vector2 newPosition);
+  [Signal]
+  public delegate void MouseHoveredEventHandler(Vector2 worldPos);
 
   [Export]
   public float Speed = 500f;
@@ -21,9 +27,17 @@ public partial class CameraControls : Camera2D
   [Export]
   public Vector2 StartPosition = Vector2.Zero;
 
+  [Export]
+  public UiManager uiManager;
+
   public CameraControls(Vector2 startPosition = new Vector2())
   {
+    Name = "CameraControls";
+    UniqueNameInOwner = true;
     StartPosition = startPosition;
+
+    uiManager = new UiManager(this);
+    AddChild(uiManager);
   }
 
   public override void _Ready()
@@ -31,9 +45,21 @@ public partial class CameraControls : Camera2D
     Position = StartPosition;
   }
 
-
   public override void _Process(double delta)
   {
+    // Emit MouseHovered every 0.2 seconds only if mouse position changed
+    Vector2 currentMousePos = GetGlobalMousePosition();
+    hoverEmitTimer += delta;
+    if (hoverEmitTimer >= HoverEmitInterval)
+    {
+      if (currentMousePos != lastMousePos)
+      {
+        EmitSignal(nameof(MouseHovered), currentMousePos);
+        lastMousePos = currentMousePos;
+      }
+      hoverEmitTimer = 0;
+    }
+
     Vector2 direction = Vector2.Zero;
     if (Input.IsActionPressed("camera_up") || Input.IsKeyPressed(Key.W))
       direction.Y -= 1;

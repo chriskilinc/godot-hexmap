@@ -5,19 +5,21 @@ using System.Linq;
 public partial class Hex : Node2D
 {
   public bool debugMode = false;
-  private const float V = 32.0f;
-
   public readonly int Q;
   public readonly int R;
   public readonly int S;
   private readonly HexMap _hexMap;
   readonly float WIDTH_MULTIPLIER = Mathf.Sqrt(3) / 2;
-  public static float radius = V;
+  public static float radius = 32.0f; // Distance from center to any corner
+
+  public Color OUTLINE_COLOR = new Color(0, 0, 0, 0.25f); // Dark gray, less black
+  private bool isHovered = false;
 
   private Sprite2D hexSprite;
   private Control labelContainer;
   private Label coordLabel;
   public Color fillColor = Colors.White;
+  public Color outlineColor;
 
   public Texture2D hexTexture;
   public Texture2D grassTexture;
@@ -29,6 +31,8 @@ public partial class Hex : Node2D
     R = r;
     S = -Q - R;
     _hexMap = hexMap;
+
+    outlineColor = OUTLINE_COLOR;
 
     float x = HexHorizontalSpacing() * (q + r * 0.5f);
     float y = HexVerticalSpacing() * r;
@@ -87,14 +91,18 @@ public partial class Hex : Node2D
     Vector2[] uvs = new Vector2[6];
     float angle_offset = Mathf.Pi / 6; // Pointy top
 
-    float uvScale = 1f; // Shrink texture coverage
+    float uvScaleX = 2f; // Horizontal scale
+    float uvScaleY = 0.98f; // Vertical scale (less cropping at top/bottom)
     for (int i = 0; i < 6; i++)
     {
       float angle = angle_offset + i * Mathf.Pi / 3;
       points[i] = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
-      // Map hex points to [0,1] UV space (centered), then scale toward center
-      // The UV mapping assumes the hex fits perfectly inside the texture.
-      uvs[i] = (points[i] * uvScale / (radius * 2)) + new Vector2(0.5f, 0.5f);
+      // Scale X and Y separately for better fit
+      Vector2 scaled = new Vector2(points[i].X * uvScaleX, points[i].Y * uvScaleY);
+      uvs[i] = (scaled / (radius * 2)) + new Vector2(0.5f, 0.5f);
+      // Clamp UVs to [0,1] to avoid overflow
+      uvs[i].X = Mathf.Clamp(uvs[i].X, 0f, 1f);
+      uvs[i].Y = Mathf.Clamp(uvs[i].Y, 0f, 1f);
     }
 
     if (hexTexture != null)
@@ -106,7 +114,15 @@ public partial class Hex : Node2D
       DrawPolygon(points, Enumerable.Repeat(fillColor, 6).ToArray());
     }
 
-    DrawPolyline(points.Append(points[0]).ToArray(), Colors.Black, 1.0f); // Outline
+    // Explicitly close the polyline for consistent thickness
+    float outlineInset = 0.25f; // Offset inward for even thickness
+    Vector2[] outlinePoints = new Vector2[7];
+    for (int i = 0; i < 6; i++)
+    {
+      outlinePoints[i] = points[i] * ((radius - outlineInset) / radius);
+    }
+    outlinePoints[6] = outlinePoints[0]; // Close the shape
+    DrawPolyline(outlinePoints, outlineColor, 0.75f);
   }
 
   public static float HexHeight()
@@ -166,9 +182,36 @@ public partial class Hex : Node2D
     Position = position;
   }
 
-  public void SetFillColor(Color color)
+  public void SelectTile()
   {
-    fillColor = color;
+    outlineColor = Colors.Black;
+    QueueRedraw();
+  }
+
+  public void DeselectTile()
+  {
+    outlineColor = OUTLINE_COLOR;
+    QueueRedraw();
+  }
+
+  public void HoverTile()
+  {
+    isHovered = true;
+    AddChild(CreateCenterTextControl($"{Q},{R}"));
+    QueueRedraw();
+  }
+
+  public void UnhoverTile()
+  {
+    // TODO: Probablt should not remove all controls, only the coord label
+    isHovered = false;
+    foreach (var child in GetChildren())
+    {
+      if (child is Control control)
+      {
+        control.QueueFree();
+      }
+    }
     QueueRedraw();
   }
 }
